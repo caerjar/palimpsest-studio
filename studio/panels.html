@@ -1,0 +1,56 @@
+<!-- Palimpsest Studio: source + writing panels, placed in front of the Writing
+     Record's own (hidden) source pickers. The replay below is the real page. -->
+<section class="st" id="st-source">
+  <div class="sthd">
+    <h2>Source</h2>
+    <div class="sttabs" role="tablist">
+      <button role="tab" data-tab="gutenberg" aria-selected="true">Gutenberg</button>
+      <button role="tab" data-tab="paste" aria-selected="false">Paste</button>
+      <button role="tab" data-tab="none" aria-selected="false">None</button>
+    </div>
+  </div>
+  <div class="stpane" data-pane="gutenberg">
+    <form id="st-gsearch" class="strow">
+      <input id="st-gq" type="search" placeholder="title, author, or a gutenberg.org link" autocomplete="off" enterkeyhint="search">
+      <button type="submit">Find</button>
+    </form>
+    <ul id="st-gresults" class="stresults"></ul>
+  </div>
+  <div class="stpane" data-pane="paste" hidden>
+    <textarea id="st-paste" rows="4" placeholder="Paste a passage, or your own draft"></textarea>
+    <div class="strow"><button id="st-usepaste">Use this text</button>
+      <label class="file">Open .txt / .md<input id="st-srcfile" type="file" accept=".txt,.md,text/plain,text/markdown"></label></div>
+  </div>
+  <div id="st-ref" class="stref" hidden>
+    <div class="streftitle"><span id="st-reftitle"></span><button id="st-refclose" title="remove the source">×</button></div>
+    <div id="st-reftext" class="streftext" tabindex="0"></div>
+  </div>
+</section>
+
+<section class="st" id="st-write">
+  <div class="sthd">
+    <h2>Write</h2>
+    <span id="st-clock" class="stclock" aria-live="off">0:00</span>
+    <button id="st-restart" disabled>Start over</button>
+    <button id="st-done" class="primary" disabled>Done</button>
+  </div>
+  <textarea id="st-text" rows="6" spellcheck="false" autocapitalize="sentences"
+            placeholder="Type here. Recording starts with your first key."></textarea>
+</section>
+
+<section class="st" id="st-play" hidden>
+  <div class="sthd">
+    <h2>Playback</h2>
+    <button id="st-wav">⬇ WAV</button>
+    <button id="st-jsonl">⬇ JSONL</button>
+    <button id="st-share">Share link</button>
+    <button id="st-dials" class="stdialsbtn" aria-expanded="false">Sound ▾</button>
+    <span id="st-wavst" class="stclock"></span>
+  </div>
+  <div id="st-sharebox" class="stshare" hidden>
+    <p id="st-sharemsg">A share link publishes what you typed and its timing, plus your sound settings. Anyone with the link can play it.</p>
+    <div class="strow" id="st-pubrow"><button id="st-publish" class="primary">Publish</button><button id="st-sharecancel">Cancel</button></div>
+    <div class="strow" id="st-urlrow" hidden><input id="st-shareurl" readonly><button id="st-copy">Copy</button></div>
+  </div>
+  <p id="st-sharedfrom" class="stshared" hidden><span id="st-sharedsrc"></span> <a href="/">Make your own</a></p>
+</section>

@@ -1,0 +1,15 @@
+.git
+dist
+data
+node_modules
+test-results
+playwright-report
+e2e
+tests
+**/__pycache__
+vendor/palimpsest/.git
+vendor/palimpsest/docs
+vendor/palimpsest/demo
+vendor/palimpsest/tests
+vendor/palimpsest/books
+vendor/palimpsest/workbench

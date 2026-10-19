@@ -1,0 +1,84 @@
+/* Palimpsest Studio — everything the page adds on top of Palimpsest's style.css.
+ * Three panels (source, write, playback) in front of the real Writing Record,
+ * which supplies the replay. Phone first: the keyboard gets the screen while
+ * writing, and the synth dials fold into a drawer. */
+
+/* The Writing Record's own pickers, demo recorder and the analysis tables
+ * stay in the markup (its script wires them) but are not part of the studio. */
+.src, #drop, #record-controls, #demo-typing-area, #session-upload,
+#mrender, #view > h2:nth-of-type(n+2), #view > table, #voices, #view > details.cfg { display: none !important; }
+
+.sthead h1 { margin: 0 0 6px; }
+
+/* ---------------------------------------------------------------- panels --- */
+.st { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px 14px; margin: 0 0 14px; }
+.sthd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.sthd h2 { margin: 0 auto 0 0; border: none; font-size: 20px; }
+.st button, .st label.file {
+  font: 14px Georgia, serif; border: 1px solid var(--line); background: var(--field, var(--paper));
+  color: var(--ink2, var(--ink)); border-radius: 18px; padding: 6px 14px; cursor: pointer; min-height: 36px;
+}
+.st button:hover:not(:disabled), .st label.file:hover { border-color: var(--gold); color: var(--gold); }
+.st button.primary { border-color: var(--gold); color: var(--gold); }
+.st button:disabled { opacity: .45; cursor: default; }
+.st label.file { display: inline-flex; align-items: center; }
+.st label.file input { display: none; }
+.st input[type=search], .st input[readonly], .st textarea {
+  font: 16px/1.55 Georgia, serif;           /* 16px: iOS zooms the page on anything smaller */
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  background: var(--paper); color: var(--ink); width: 100%; box-sizing: border-box;
+}
+.strow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.strow input { flex: 1; min-width: 0; }
+.strow:first-child { margin-top: 0; }
+
+.sttabs { display: inline-flex; gap: 4px; }
+.sttabs button[aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+
+.stresults { list-style: none; margin: 8px 0 0; padding: 0; max-height: 30vh; overflow: auto; }
+.stresults li { margin: 0 0 4px; }
+.stresults li.empty { color: var(--soft); font-style: italic; font-size: 14px; }
+.stresults button { width: 100%; text-align: left; border-radius: 8px !important; }
+.stresults button span { display: block; font-size: 12.5px; color: var(--soft); }
+
+.stref { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.streftitle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gold); }
+.streftitle span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.streftitle button { min-height: 28px; padding: 0 10px; }
+.streftext { white-space: pre-wrap; font: 16px/1.6 Georgia, serif; color: var(--ink3, var(--soft));
+  max-height: 30vh; overflow: auto; margin-top: 6px; overscroll-behavior: contain; }
+
+#st-text { min-height: 28vh; resize: vertical; }
+.stclock { font: 13px ui-monospace, Menlo, monospace; color: var(--soft); }
+
+.stshare { margin-top: 4px; }
+.stshare p, .stshared { margin: 0 0 6px; font-size: 14px; color: var(--soft); }
+.stshared a { color: var(--gold); }
+.stdialsbtn { display: none; }
+#page { max-height: 40vh; overflow: auto; }
+
+/* ----------------------------------------------------------------- phone --- */
+@media (max-width: 700px) {
+  .wrap { padding: 16px 16px 28px !important; }
+  .topbar { margin: 0 -16px 12px !important; padding: 8px 16px !important; }   /* style.css bleeds it by the 20px it pads with */
+  .sthead h1 { font-size: 26px; }
+  .st { padding: 10px 12px 12px; }
+  .sthd h2 { font-size: 18px; }
+
+  /* while typing, the source shrinks to a strip above the keyboard */
+  body.st-writing #st-source .stpane, body.st-writing #st-source .sthd { display: none; }
+  body.st-writing .streftext { max-height: 18vh; }
+  body.st-writing .stref { margin-top: 0; border-top: none; padding-top: 0; }
+  body.st-writing #st-text { min-height: 22vh; }
+
+  /* sound dials live in a drawer; play, rewind and the scrubber stay out */
+  .stdialsbtn { display: inline-block; }
+  body:not(.st-dials-open) .replay > .rctl:nth-of-type(n+2),
+  body:not(.st-dials-open) .replay > .rctl:first-child > :not(#play):not(#rewind) { display: none; }
+  .rctl { gap: 10px; }
+  .rctl button { min-height: 36px; }
+  #scrub { width: 100%; }
+  .striphd .leg { display: none; }
+  #page { max-height: 32vh; font-size: 16px; padding: 12px 14px; }
+}
