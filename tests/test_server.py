@@ -46,6 +46,41 @@ class TestGutenberg(unittest.TestCase):
         self.assertEqual(server._display_name("Homer"), "Homer")
 
 
+CSV = '''Text#,Type,Issued,Title,Language,Authors,Subjects,LoCC,Bookshelves
+15,Text,1991-06-01,"Moby-Dick; or,
+The Whale",en,"Melville, Herman, 1819-1891",,,
+2701,Text,2001-07-01,"Moby Dick; Or, The Whale",en,"Melville, Herman, 1819-1891",,,
+9999,Sound,2001-07-01,Moby Dick audiobook,en,"Melville, Herman, 1819-1891",,,
+5000,Text,2001-07-01,Moby Dick (traduit),fr,"Melville, Herman, 1819-1891",,,
+11,Text,2008-06-27,Alice's Adventures in Wonderland,en,"Carroll, Lewis, 1832-1898 [Illustrator]",,,
+'''
+
+
+class TestCatalog(unittest.TestCase):
+    def setUp(self):
+        self.cat = server.Catalog()
+        self.cat.load(CSV)
+
+    def test_search_matches_title_and_author_words(self):
+        self.assertEqual([b["id"] for b in self.cat.search("moby melville")], [15, 2701, 5000])
+        self.assertEqual(self.cat.search("alice")[0],
+                         {"id": 11, "title": "Alice's Adventures in Wonderland", "author": "Lewis Carroll"})
+
+    def test_titles_are_one_line_and_sound_is_skipped(self):
+        self.assertEqual(self.cat.search("moby")[0]["title"], "Moby-Dick; or, The Whale")
+        self.assertNotIn(9999, [b["id"] for b in self.cat.search("audiobook")])
+
+    def test_falls_back_when_gutendex_is_slow(self):
+        def slow(q):
+            raise TimeoutError()
+        orig, server._search_gutendex = server._search_gutendex, slow
+        orig_cat, server.CATALOG = server.CATALOG, self.cat
+        try:
+            self.assertEqual(server.search_books("wonderland")[0]["id"], 11)
+        finally:
+            server._search_gutendex, server.CATALOG = orig, orig_cat
+
+
 class TestCleanShare(unittest.TestCase):
     def test_keeps_known_fields(self):
         s = server.clean_share({"events": EVENTS, "music": {"scale": "pentatonic", "bpm": 96},

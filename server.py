@@ -17,6 +17,8 @@ Stdlib only.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import math
 import os
@@ -77,9 +79,9 @@ def _field(head: str, name: str) -> str:
     return re.sub(r"\s+", " ", m.group(1)).strip() if m else ""
 
 
-def _get(url: str, limit: int) -> bytes:
+def _get(url: str, limit: int, timeout: float = 20) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=20) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         data = r.read(limit + 1)
     if len(data) > limit:
         raise ValueError("too large")
@@ -90,15 +92,26 @@ _search_cache: dict[str, tuple[float, list]] = {}
 
 
 def search_books(q: str) -> list[dict]:
+    """Gutendex first (it ranks by downloads), the local catalog when it is slow."""
     key = q.lower()
     hit = _search_cache.get(key)
     if hit and time.time() - hit[0] < 3600:
         return hit[1]
-    url = GUTENDEX + "?" + urllib.parse.urlencode({"search": q})
     try:
-        j = json.loads(_get(url, 2 * 1024 * 1024))
-    except (urllib.error.URLError, TimeoutError):       # Gutendex is slow now and then
-        j = json.loads(_get(url, 2 * 1024 * 1024))
+        out = _search_gutendex(q)
+    except Exception:
+        out = CATALOG.search(q)
+        if out is None:
+            raise
+    if len(_search_cache) > 500:
+        _search_cache.clear()
+    _search_cache[key] = (time.time(), out)
+    return out
+
+
+def _search_gutendex(q: str) -> list[dict]:
+    url = GUTENDEX + "?" + urllib.parse.urlencode({"search": q})
+    j = json.loads(_get(url, 2 * 1024 * 1024, timeout=6))
     out = []
     for b in j.get("results", [])[:12]:
         if not any(f.startswith("text/plain") for f in b.get("formats", {})):
@@ -106,10 +119,69 @@ def search_books(q: str) -> list[dict]:
         authors = b.get("authors") or []
         out.append({"id": b["id"], "title": b.get("title", ""),
                     "author": _display_name(authors[0].get("name", "")) if authors else ""})
-    if len(_search_cache) > 500:
-        _search_cache.clear()
-    _search_cache[key] = (time.time(), out)
     return out
+
+
+class Catalog:
+    """Project Gutenberg's own catalog (pg_catalog.csv, ~20 MB, updated daily),
+    kept on the volume and refreshed weekly, searched in memory."""
+
+    URL = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
+    MAX_AGE = 7 * 86400
+
+    def __init__(self):
+        self.rows: list[tuple[int, str, str, str, str]] | None = None   # id, title, author, lang, haystack
+        self.lock = threading.Lock()
+
+    @property
+    def path(self) -> Path:
+        return DATA / "pg_catalog.csv"
+
+    def refresh(self) -> None:
+        """Download if missing or stale, then load. Safe to call from a thread."""
+        try:
+            if not self.path.exists() or time.time() - self.path.stat().st_mtime > self.MAX_AGE:
+                data = _get(self.URL, 64 * 1024 * 1024, timeout=120)
+                tmp = self.path.with_suffix(".tmp")
+                tmp.write_bytes(data)
+                tmp.replace(self.path)
+            self.load(self.path.read_text(encoding="utf-8", errors="replace"))
+        except Exception as e:                  # search falls back to Gutendex alone
+            sys.stderr.write(f"catalog: {e}\n")
+
+    def load(self, text: str) -> None:
+        rows = []
+        for r in csv.DictReader(io.StringIO(text)):
+            if r.get("Type") != "Text":
+                continue
+            try:
+                bid = int(r["Text#"])
+            except (KeyError, ValueError):
+                continue
+            title = re.sub(r"\s+", " ", r.get("Title") or "").strip()
+            first = (r.get("Authors") or "").split(";")[0]
+            author = _display_name(re.sub(r",\s*(?:\d|-|\?).*$|\s*\[.*?\]", "", first).strip())
+            rows.append((bid, title, author, r.get("Language") or "", (title + " " + first).lower()))
+        with self.lock:
+            self.rows = rows
+
+    def search(self, q: str, limit: int = 12) -> list[dict] | None:
+        with self.lock:
+            rows = self.rows
+        if rows is None:
+            return None
+        words = re.findall(r"\w+", q.lower())
+        if not words:
+            return []
+        ql = q.lower().strip()
+        hits = [r for r in rows if all(w in r[4] for w in words)]
+        # English first, then titles that start with the query, then the older
+        # (lower-numbered) editions, which are usually the well-known ones
+        hits.sort(key=lambda r: ("en" not in r[3].split("; "), not r[1].lower().startswith(ql), r[0]))
+        return [{"id": r[0], "title": r[1], "author": r[2]} for r in hits[:limit]]
+
+
+CATALOG = Catalog()
 
 
 def _display_name(name: str) -> str:
@@ -352,6 +424,7 @@ def main() -> None:
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
     DATA.mkdir(parents=True, exist_ok=True)
+    threading.Thread(target=CATALOG.refresh, daemon=True).start()
     srv = ThreadingHTTPServer((host, port), Handler)
     print(f"palimpsest-studio on http://{host}:{port}  (data: {DATA})", flush=True)
     srv.serve_forever()
