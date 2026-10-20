@@ -41,6 +41,36 @@ test('find a Gutenberg book, type, Done plays it back', async ({ page }) => {
   expect(await page.evaluate(() => stateAt(Infinity).text)).toBe('Call me Ishmael.');
 });
 
+test('a long source pages 500 words at a time', async ({ page }) => {
+  const long = Array.from({ length: 1200 }, (_, i) => 'w' + (i + 1)).join(' ');
+  await page.route('**/api/gutenberg/text/1342', r => r.fulfill({ json: { id: 1342, title: 'Long', author: '', text: long } }));
+  await page.goto('/');
+  await page.getByPlaceholder('title, author, or a gutenberg.org link').fill('1342');
+  await page.getByRole('button', { name: 'Find' }).click();
+
+  const text = page.locator('#st-reftext'), pos = page.locator('#st-refpos');
+  const back = page.getByRole('button', { name: '‹ Back' }), next = page.getByRole('button', { name: 'Next ›' });
+  await expect(pos).toHaveText('words 1–500 of 1,200');
+  await expect(text).toHaveText(/^w1 .* w500 $/);
+  await expect(back).toBeDisabled();
+  await next.click();
+  await expect(pos).toHaveText('words 501–1,000 of 1,200');
+  await expect(text).toHaveText(/^w501 /);
+  await next.click();
+  await expect(pos).toHaveText('words 1,001–1,200 of 1,200');
+  await expect(next).toBeDisabled();
+  await back.click();
+  await expect(pos).toHaveText('words 501–1,000 of 1,200');
+});
+
+test('a short source has no paging', async ({ page }) => {
+  await page.goto('/');
+  await page.getByPlaceholder('title, author, or a gutenberg.org link').fill('2701');
+  await page.getByRole('button', { name: 'Find' }).click();
+  await expect(page.locator('#st-reftext')).toContainText('Call me Ishmael.');
+  await expect(page.locator('#st-refnav')).toBeHidden();
+});
+
 test('paste a passage as the source', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('tab', { name: 'Paste' }).click();

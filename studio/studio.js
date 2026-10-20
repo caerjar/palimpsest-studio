@@ -28,13 +28,30 @@
   }
   tabs.forEach(function (b) { b.addEventListener('click', function () { selectTab(b.dataset.tab); }); });
 
+  // The source is shown a page of words at a time; a whole novel in one box is
+  // unreadable on a phone. Words keep their trailing whitespace, so line breaks survive.
+  var PAGE_WORDS = 500, words = [], page = 0;
   function setSource(meta, text) {
     source = meta;
     show($('st-ref'), !!meta);
     $('st-reftitle').textContent = meta ? meta.title + (meta.author ? ' — ' + meta.author : '') : '';
-    $('st-reftext').textContent = text || '';
-    $('st-reftext').scrollTop = 0;
+    words = (text || '').match(/\S+\s*/g) || [];
+    showPage(0);
   }
+  function showPage(n) {
+    var pages = Math.max(1, Math.ceil(words.length / PAGE_WORDS));
+    page = Math.max(0, Math.min(n, pages - 1));
+    var from = page * PAGE_WORDS, to = Math.min(words.length, from + PAGE_WORDS);
+    $('st-reftext').textContent = words.slice(from, to).join('');
+    $('st-reftext').scrollTop = 0;
+    show($('st-refnav'), pages > 1);
+    $('st-refpos').textContent = 'words ' + (from + 1).toLocaleString() + '–' + to.toLocaleString() +
+      ' of ' + words.length.toLocaleString();
+    $('st-refback').disabled = page === 0;
+    $('st-refnext').disabled = page === pages - 1;
+  }
+  $('st-refback').addEventListener('click', function () { showPage(page - 1); });
+  $('st-refnext').addEventListener('click', function () { showPage(page + 1); });
   $('st-refclose').addEventListener('click', function () { selectTab('none'); });
 
   var results = $('st-gresults');
@@ -124,7 +141,7 @@
   // On a phone, leaving the textarea re-expands the source panel above it, which
   // would slide these buttons out from under the finger mid-tap. Keep the focus
   // through the press; each handler lets go of it afterwards.
-  ['st-done', 'st-restart'].forEach(function (id) {
+  ['st-done', 'st-restart', 'st-refback', 'st-refnext'].forEach(function (id) {
     $(id).addEventListener('pointerdown', function (e) { if (document.activeElement === ta) e.preventDefault(); });
   });
 
