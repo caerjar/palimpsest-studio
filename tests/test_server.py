@@ -2,6 +2,7 @@
 
     python3 -m unittest discover -s tests -v
 """
+import io
 import json
 import os
 import sys
@@ -59,7 +60,7 @@ The Whale",en,"Melville, Herman, 1819-1891",,,
 class TestCatalog(unittest.TestCase):
     def setUp(self):
         self.cat = server.Catalog()
-        self.cat.load(CSV)
+        self.cat.load(io.StringIO(CSV))
 
     def test_search_matches_title_and_author_words(self):
         self.assertEqual([b["id"] for b in self.cat.search("moby melville")], [15, 2701, 5000])

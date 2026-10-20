@@ -18,7 +18,6 @@ Stdlib only.
 from __future__ import annotations
 
 import csv
-import io
 import json
 import math
 import os
@@ -141,27 +140,42 @@ class Catalog:
         """Download if missing or stale, then load. Safe to call from a thread."""
         try:
             if not self.path.exists() or time.time() - self.path.stat().st_mtime > self.MAX_AGE:
-                data = _get(self.URL, 64 * 1024 * 1024, timeout=120)
-                tmp = self.path.with_suffix(".tmp")
-                tmp.write_bytes(data)
-                tmp.replace(self.path)
-            self.load(self.path.read_text(encoding="utf-8", errors="replace"))
+                self._download()
+            with open(self.path, encoding="utf-8", errors="replace", newline="") as f:
+                self.load(f)
         except Exception as e:                  # search falls back to Gutendex alone
             sys.stderr.write(f"catalog: {e}\n")
 
-    def load(self, text: str) -> None:
-        rows = []
-        for r in csv.DictReader(io.StringIO(text)):
-            if r.get("Type") != "Text":
+    def _download(self) -> None:
+        # streamed to disk: the machine has 256 MB and the file is ~20 MB
+        tmp = self.path.with_suffix(".tmp")
+        req = urllib.request.Request(self.URL, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
+            while chunk := r.read(1 << 16):
+                f.write(chunk)
+        tmp.replace(self.path)
+
+    def load(self, lines) -> None:
+        """`lines`: an open file or any iterable of CSV lines. Rows are kept as
+        small tuples; the full catalog loads in well under 100 MB."""
+        rows, reader = [], csv.reader(lines)
+        head = next(reader, [])
+        try:
+            i_id, i_type, i_title, i_lang, i_auth = (head.index(c) for c in
+                                                     ("Text#", "Type", "Title", "Language", "Authors"))
+        except ValueError:
+            raise ValueError("unexpected catalog columns")
+        for r in reader:
+            if len(r) <= max(i_id, i_type, i_title, i_lang, i_auth) or r[i_type] != "Text":
                 continue
             try:
-                bid = int(r["Text#"])
-            except (KeyError, ValueError):
+                bid = int(r[i_id])
+            except ValueError:
                 continue
-            title = re.sub(r"\s+", " ", r.get("Title") or "").strip()
-            first = (r.get("Authors") or "").split(";")[0]
+            title = " ".join(r[i_title].split())
+            first = r[i_auth].split(";")[0]
             author = _display_name(re.sub(r",\s*(?:\d|-|\?).*$|\s*\[.*?\]", "", first).strip())
-            rows.append((bid, title, author, r.get("Language") or "", (title + " " + first).lower()))
+            rows.append((bid, title, author, r[i_lang], sys.intern((title + " " + author).lower())))
         with self.lock:
             self.rows = rows
 
