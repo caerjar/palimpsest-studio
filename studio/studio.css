@@ -60,6 +60,10 @@
 .stshare p, .stshared { margin: 0 0 6px; font-size: 14px; color: var(--soft); }
 .stshared a { color: var(--gold); }
 .stdialsbtn { display: none; }
+.stsounds { flex-basis: 100%; display: flex; gap: 6px; align-items: center; min-width: 0; }
+.stsoundlist { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; scrollbar-width: none; }
+.stsoundlist button { white-space: nowrap; }
+.st button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: var(--hilite, var(--field)); }
 #page { max-height: 40vh; overflow: auto; }
 
 /* ----------------------------------------------------------------- phone --- */

@@ -156,6 +156,7 @@
     push({ type: 'editend', len: ta.value.length, text: ta.value });
     var events = rec.all.slice();
     stopReplay();
+    setMusic(rollMusic(rec.sid, 0, ON));          // every piece gets its own sound
     ingest(events, { session: rec.sid, source: 'studio' }).then(function () {
       show($('st-play'), true); hideShare();
       $('st-play').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -169,6 +170,32 @@
     $('st-done').disabled = true; $('st-restart').disabled = true;
     show($('st-play'), false); $('view').hidden = true;
     ta.focus();
+  });
+
+  // -------------------------------------------------------------- sound ---
+  // The studio turns on the page's moving parts: tone follows typing speed, long
+  // pauses swell, deletions fall (the key walk comes from each roll).
+  var ON = window.STUDIO_ON = { fx: { toneMove: 0.6 }, swell: { on: true }, deleteFall: true };
+  // before ingest(): it rebuilds everything, so only the controls need to follow
+  function setMusic(m) { CONFIG.music = m; syncMusicUI(); syncConfigText(); syncBus(AC); markSound(); }
+  function useMusic(m) { applyMusic(m); markSound(); }
+  var soundBox = $('st-sounds');
+  Object.keys(SOUNDS).forEach(function (name) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = name; b.dataset.sound = name;
+    b.addEventListener('click', function () {
+      var m = soundMusic(name, Object.assign({}, ON, { paragraphKey: CONFIG.music.paragraphKey || 7 }));
+      m.roll = CONFIG.music.roll || 0;
+      useMusic(m);
+    });
+    soundBox.appendChild(b);
+  });
+  function markSound() {
+    soundBox.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.sound === CONFIG.music.sound ? 'true' : 'false');
+    });
+  }
+  $('st-reroll').addEventListener('click', function () {
+    useMusic(rollMusic(META.session, (CONFIG.music.roll || 0) + 1, ON));
   });
 
   // ----------------------------------------------------------- playback ---
@@ -251,7 +278,7 @@
     document.body.classList.add('st-shared');
     show($('st-source'), false); show($('st-write'), false);
     api('/api/s/' + m[1]).then(function (s) {
-      if (s.music) { CONFIG.music = cleanMusic(s.music); syncMusicUI(); syncConfigText(); }
+      if (s.music) setMusic(cleanMusic(s.music));   // the resolved sound, never re-rolled
       var src = s.source;
       $('st-sharedsrc').textContent = src && src.title
         ? 'Typed from ' + src.title + (src.author ? ' — ' + src.author : '') + '.' : '';

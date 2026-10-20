@@ -99,6 +99,13 @@ class TestCleanShare(unittest.TestCase):
         with self.assertRaises(server.Invalid):
             server.clean_share(bad)
 
+    def test_keeps_a_rolled_sound(self):
+        music = {"sound": "music box", "roll": 3, "paragraphKey": 7, "deleteFall": True,
+                 "swell": {"on": True, "ms": 2000, "gain": 0.2}, "fx": {"tone": 4200, "toneMove": 0.6}}
+        self.assertEqual(server.clean_share({"events": EVENTS, "music": music})["music"], music)
+        with self.assertRaises(server.Invalid):
+            server.clean_share({"events": EVENTS, "music": {"sound": "rain's"}})
+
     def test_rejects_bad_types(self):
         for bad in ({}, {"events": []}, {"events": [{"type": "nope", "t": 1}]},
                     {"events": [dict(EVENTS[1], t="soon")]}, {"events": [dict(EVENTS[1], len=float("nan"))]}):

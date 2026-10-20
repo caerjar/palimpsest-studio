@@ -189,9 +189,9 @@ class Catalog:
             return []
         ql = q.lower().strip()
         hits = [r for r in rows if all(w in r[4] for w in words)]
-        # English first, then titles that start with the query, then the older
-        # (lower-numbered) editions, which are usually the well-known ones
-        hits.sort(key=lambda r: ("en" not in r[3].split("; "), not r[1].lower().startswith(ql), r[0]))
+        # English first, then an exact title, then the lowest numbers: Gutenberg
+        # catalogued the classics early, so Moby-Dick (#15) beats a directory (#62386)
+        hits.sort(key=lambda r: ("en" not in r[3].split("; "), r[1].lower() != ql, r[0]))
         return [{"id": r[0], "title": r[1], "author": r[2]} for r in hits[:limit]]
 
 
